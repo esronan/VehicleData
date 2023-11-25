@@ -3,48 +3,20 @@ import pandas as pd
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from geopy.distance import geodesic
+import plotly.express as px
 
 st.set_page_config(layout="wide")
 st.title("Passive vehicle sensor data")
-gps_coords = pd.read_csv("data/dataset_gps.csv")
+with st.sidebar:
+    drive_nr = st.selectbox(
+        "Choose drive number",
+        range(1,10)
+    )
+gps_coords = pd.read_csv(f"data/dataset_gps ({drive_nr}).csv")
 
 dataset_gps_mpu_left = pd.read_csv("data/dataset_gps_mpu_left.csv")
-print(dataset_gps_mpu_left.columns)
-st.write(dataset_gps_mpu_left.head())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+st.write(dataset_gps_mpu_left)
+st.write(gps_coords)
 
 def dist_driven(df):
     i = 0
@@ -82,33 +54,23 @@ kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
 
 kpi1.metric(
     label="Top speed (m/s)",
-    value=round(max_speed,1),
-    #delta=round(avg_price_now)-round(avg_price_then), 
-    #delta_color="inverse"
+    value=round(max_speed,1)
 )
 kpi2.metric(
     label="Average speed (m/s)",
     value=round(avg_speed,1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
 )
 kpi3.metric(
     label="Max elevation (m)",
-    value=round(max_elevation, 1),
-   # delta=int(avg_sal_now-avg_sal_then),
-   # delta_color="inverse"
+    value=round(max_elevation, 1)
 )
 kpi4.metric(
     label="Total time (minutes)",
     value=round(time_taken/60, 1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
 )
 kpi5.metric(
     label="Total distance (km)",
     value=round(dist_driven, 1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
 )
 
 
@@ -197,37 +159,29 @@ turn_limit = 90
 turns = calc_sharp_turns(df, "bearing", "elapsed_time_seconds", turn_limit)
 
 
+
+
 kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
 
 kpi1.metric(
     label=f"Instances of aggressive acceleration (>{agg_limit} m/s)",
-    value=accel,
-    #delta=round(avg_price_now)-round(avg_price_then), 
-    #delta_color="inverse"
+    value=accel
 )
 kpi2.metric(
     label=f"Instances of aggressive deceleration (>{agg_limit} m/s)",
     value=decel
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
 )
 kpi3.metric(
     label=f"Instances of aggressive turns (bearing change > {turn_limit})",
-    value=turns,
-   # delta=int(avg_sal_now-avg_sal_then),
-   # delta_color="inverse"
+    value=turns
 )
 kpi4.metric(
     label="Total time (minutes)",
     value=round(time_taken/60, 1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
 )
 kpi5.metric(
     label="Total distance (km)",
     value=round(dist_driven, 1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
 )
 
 
@@ -286,6 +240,34 @@ kpi5.metric(
 
 ##### DRIVE METRICS #####
 
+#GOOGLE MAPS SPEED
+orig_coord = df.iloc[0]['latitude'], df.iloc[0]['longitude']
+
+df["dist_to_origin"] = df.apply(lambda x: geodesic((x["latitude"], x["longitude"]), orig_coord).km, axis=1)
+max_dist_ind = df["dist_to_origin"].idxmax()
+dest_coord = (df.at[max_dist_ind, 'latitude'], df.at[max_dist_ind, 'longitude'])
+st.write(dest_coord)
+
+
+import googlemaps
+from datetime import datetime
+
+gmaps = googlemaps.Client(key='AIzaSyDWsxdWTWXdKe2IAZJMyNV4MVpZaR1hql4')#
+
+now = datetime.now()
+directions_result = gmaps.directions(orig_coord,
+                                     dest_coord,
+                                     mode="driving",
+                                     avoid="ferries",
+                                     departure_time=now
+                                    )
+
+#st.write(directions_result[0]['legs'][0]['distance']['text'])
+#st.write(directions_result[0]['legs'][0]['duration']['text'])
+
+
+##### DRIVE MAP #####
+
 def min_max_scaler(df, col, type="size"):
     
     df["size"] = (df[col]-df[col].min())/(df[col].max()-df[col].min())
@@ -313,8 +295,67 @@ elif y == "Speed":
 elif y == "Altitude":
     plot_data = get_colours(gps_coords, "elevation")
     st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
-#
-st.map(plot_data, size=0.05, color="colour", use_container_width=True)
+
+
+
+fig = px.scatter_mapbox(plot_data,
+                        lat='latitude',
+                        lon='longitude',
+                        color='elevation',
+                        zoom=11.5,  # Adjust the zoom level as needed
+                        title="Plotly Map with Fixed View and Roads",
+                        color_continuous_scale="Viridis")       
+fig.update_layout(mapbox_style="open-street-map",  # You can choose different Mapbox styles
+                  mapbox=dict(
+                      center=dict(lat=df['latitude'].mean(), lon=df['longitude'].mean()),  # Center the map around the data
+                      layers=[]  # Remove additional Mapbox layers (e.g., roads)
+                  ))              
+st.plotly_chart(fig, use_container_width=True)
+#st.map(plot_data, size=0.05, color="colour", use_container_width=True)
+
+def plot_2d_3col(df, variable, sensor_location, title):
+    st.header(title)
+    col1, col2, col3 = st.columns(3)
+    with col1: 
+        y_col = variable + "_x_" + sensor_location
+        fig = px.line(dataset_gps_mpu_left, x="timestamp", y=y_col, title='X axis')
+        st.plotly_chart(fig, use_container_width=True)
+    with col2: 
+        y_col = variable + "_y_" + sensor_location
+        fig = px.line(dataset_gps_mpu_left, x="timestamp", y=y_col, title='Y axis')
+        st.plotly_chart(fig, use_container_width=True)
+    with col3: 
+        y_col = variable + "_z_" + sensor_location
+        fig = px.line(dataset_gps_mpu_left, x="timestamp", y=y_col, title='Z axis')
+        st.plotly_chart(fig, use_container_width=True)
+
+def plot_1d_3col(df, variable, sensor_location, title):
+    st.header(title)
+    col1, col2, col3 = st.columns(3)
+    with col1: 
+        x_col = variable + "_x_" + sensor_location
+        fig = px.histogram(dataset_gps_mpu_left, x=x_col, histfunc="count", title='X axis')
+        st.plotly_chart(fig, use_container_width=True)
+    with col2: 
+        x_col = variable + "_y_" + sensor_location
+        fig = px.histogram(dataset_gps_mpu_left, x=x_col, histfunc="count", title='Y axis')
+        st.plotly_chart(fig, use_container_width=True)
+    with col3: 
+        x_col = variable + "_z_" + sensor_location
+        fig = px.histogram(dataset_gps_mpu_left, x=x_col, histfunc="count", title='Z axis')
+        st.plotly_chart(fig, use_container_width=True)
+    
+fig = px.histogram(dataset_gps_mpu_left, x="acc_x_dashboard", nbins=200)
+st.plotly_chart(fig)
+
+
+plot_2d_3col(dataset_gps_mpu_left, "acc", "dashboard", "Accelerometer")
+plot_1d_3col(dataset_gps_mpu_left, "acc", "dashboard", "Accelerometer")
+# with col1: 
+#     fig = px.line(dataset_gps_mpu_left, x="timestamp", y="acc_x_dashboard", title='Accelerometer (X axis)')
+#     st.plotly_chart(fig, use_container_width=True)
+
+
 
 if st.checkbox('Show raw data'):
     st.subheader('Raw data')
