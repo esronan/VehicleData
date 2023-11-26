@@ -195,11 +195,33 @@ directions_result = gmaps.directions(orig_coord,
 
 ##### DRIVE MAP #####
 
+labels = utils.load_csv(f"data/{drive_nr}/dataset_labels.csv")
 
 
+label_classes = {
+                "Paved": ["paved_road", "unpaved_road"], 
+                "Road type": ["dirt_road","cobblestone_road","asphalt_road"],
+                "Speed bump":["no_speed_bump","speed_bump_asphalt","speed_bump_cobblestone"], 
+                "Quality of road - left": ["good_road_left","regular_road_left","bad_road_left"], 
+                "Quality of road - right": ["good_road_right","regular_road_right","bad_road_right"] 
+                }
+
+def label_data(df, label_df, label_classes):
+    for key in label_classes.keys():
+        label_df[key] = label_df[label_classes[key]].idxmax(axis=1)
+    label_df = label_df[label_classes.keys()]
+    
+    df = pd.concat([df, label_df], axis=1)
+
+    return df
+
+
+df = label_data(dataset_gps_mpu_left, labels, label_classes)
+
+st.write(df)
 
 st.subheader("Drive map")
-y = st.selectbox("Pick a variable to view", ["Drive path", "Speed", "Altitude"])
+y = st.selectbox("Pick a variable to view", ["Drive path", "Speed", "Altitude", "Road type", "Speed bump"])
 if y == "Drive path":
     plot_data = utils.get_colours(gps_coords, "timestamp")
     st.write("Drive begins with the blue points and ends with the yellow points")
@@ -209,19 +231,28 @@ elif y == "Speed":
 elif y == "Altitude":
     plot_data = utils.get_colours(gps_coords, "elevation")
     st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
+elif y == "Road type":
+    plot_data = utils.get_colours(gps_coords, "elevation")
+    st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
+elif y == "Altitude":
+    plot_data = utils.get_colours(gps_coords, "elevation")
+    st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
+
+foc_lat = (df['latitude'].max()+df['latitude'].min())/2
+foc_lon = (df['longitude'].max()+ df['longitude'].min())/2
 
 
-
-fig = px.scatter_mapbox(plot_data,
+fig = px.scatter_mapbox(df,
                         lat='latitude',
                         lon='longitude',
-                        color='elevation',
+                        color="Speed bump",
+                        hover_data = ["Speed bump", "latitude", "longitude", "timestamp"],
                         zoom=11.5,  # Adjust the zoom level as needed
                         title="Drive map",
                         color_continuous_scale="Viridis")       
 fig.update_layout(mapbox_style="open-street-map",  # You can choose different Mapbox styles
                   mapbox=dict(
-                      center=dict(lat=df['latitude'].mean(), lon=df['longitude'].mean()),  # Center the map around the data
+                      center=dict(lat=foc_lat, lon=foc_lon),  # Center the map around the data
                       layers=[]  # Remove additional Mapbox layers (e.g., roads)
                   ))              
 st.plotly_chart(fig, use_container_width=True)
