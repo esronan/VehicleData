@@ -10,9 +10,10 @@ st.set_page_config(layout="wide")
 st.title("Passive vehicle sensor data")
 
 
-
+#Load drive details
 drive_details = utils.load_csv("data/drive_details.csv")
 drive_details = drive_details.set_index('DataSet')
+
 #Allow user to choose drive number
 with st.sidebar:
     drive_nr = st.selectbox(
@@ -22,10 +23,13 @@ with st.sidebar:
     
     st.write(drive_details)
 
-#Load files
+##### LOAD FILES ######
+
 gps_coords = utils.load_csv(f"data/dataset_gps ({drive_nr}).csv")
 dataset_gps_mpu_left = utils.load_csv("data/dataset_gps_mpu_left.csv")
 
+
+###### DRIVE METRICS
 
 # Calculate distance driven
 dist_driven = utils.dist_driven(gps_coords)
@@ -68,8 +72,8 @@ kpi5.metric(
     label="Total distance (km)",
     value=round(dist_driven, 1)
 )
-
-
+plot_data = utils.get_colours(gps_coords, "speed_meters_per_second")
+st.map(plot_data, size=0.05, color="colour", use_container_width=True)
 
 
 
@@ -89,8 +93,6 @@ decel, accel = utils.calc_agg_accels(df, "acceleration", "elapsed_time_seconds",
 #Calculate sharp turns by a 90 degree bearing change in one time
 turn_limit = 90
 turns = utils.calc_sharp_turns(df, "bearing", "elapsed_time_seconds", turn_limit)
-
-
 
 # Showing 5 metrics related to comfort
 kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
@@ -117,18 +119,20 @@ kpi5.metric(
 )
 
 
-##### PRECISION METRICS #####
 
+
+
+##### PRECISION METRICS #####
 
 st.subheader("Sensor precision metrics")
 kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
 
+#Calculate average dilution of precision
 avg_hdop = gps_coords["hdop"].mean()
 avg_pdop = gps_coords["pdop"].mean()
 avg_vdop = gps_coords["vdop"].mean()
 
-
-
+#Calculate total occasions of poor DoP
 total_poor_dop = utils.calc_poor_dop(gps_coords, "hdop", "elapsed_time_seconds")
 
 
@@ -174,8 +178,6 @@ df["dist_to_origin"] = df.apply(lambda x: geodesic((x["latitude"], x["longitude"
 max_dist_ind = df["dist_to_origin"].idxmax()
 dest_coord = (df.at[max_dist_ind, 'latitude'], df.at[max_dist_ind, 'longitude'])
 
-
-
 import googlemaps
 from datetime import datetime
 
@@ -193,10 +195,14 @@ directions_result = gmaps.directions(orig_coord,
 #st.write(directions_result[0]['legs'][0]['duration']['text'])
 
 
+
+
+
+
+
 ##### DRIVE MAP #####
 
 labels = utils.load_csv(f"data/{drive_nr}/dataset_labels.csv")
-
 
 label_classes = {
                 "Paved": ["paved_road", "unpaved_road"], 
@@ -206,50 +212,33 @@ label_classes = {
                 "Quality of road - right": ["good_road_right","regular_road_right","bad_road_right"] 
                 }
 
-def label_data(df, label_df, label_classes):
-    for key in label_classes.keys():
-        label_df[key] = label_df[label_classes[key]].idxmax(axis=1)
-    label_df = label_df[label_classes.keys()]
-    
-    df = pd.concat([df, label_df], axis=1)
 
-    return df
+label_df = utils.label_data(dataset_gps_mpu_left, labels, label_classes)
 
 
-df = label_data(dataset_gps_mpu_left, labels, label_classes)
-
-st.write(df)
-
-st.subheader("Drive map")
+st.subheader("Drive map variable viewer")
+y_dic = {"Drive path":"timestamp", "Speed":"speed_meters_per_second", "Altitude":"elevation", "Road type":"Road type", "Speed bump":"Speed bump"}
 y = st.selectbox("Pick a variable to view", ["Drive path", "Speed", "Altitude", "Road type", "Speed bump"])
-if y == "Drive path":
-    plot_data = utils.get_colours(gps_coords, "timestamp")
-    st.write("Drive begins with the blue points and ends with the yellow points")
-elif y == "Speed":
-    plot_data = utils.get_colours(gps_coords, "speed_meters_per_second")
-    st.write("Blue points are higher speed, yellow points are lower speed")
-elif y == "Altitude":
-    plot_data = utils.get_colours(gps_coords, "elevation")
-    st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
-elif y == "Road type":
-    plot_data = utils.get_colours(gps_coords, "elevation")
-    st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
-elif y == "Altitude":
-    plot_data = utils.get_colours(gps_coords, "elevation")
-    st.write("Blue points are at higher altitudes, yellow points are at lower altitudes")
+y_col = y_dic[y]
+if y in ["Speed", "Altitude"]:
+    df = gps_coords
+else:
+    df = label_df
+
+# if y == "Speed":
+#     plot_data = utils.get_colours(gps_coords, "speed_meters_per_second")
+#     st.write("Blue points are higher speed, yellow points are lower speed")
 
 foc_lat = (df['latitude'].max()+df['latitude'].min())/2
 foc_lon = (df['longitude'].max()+ df['longitude'].min())/2
 
-
 fig = px.scatter_mapbox(df,
                         lat='latitude',
                         lon='longitude',
-                        color="Speed bump",
-                        hover_data = ["Speed bump", "latitude", "longitude", "timestamp"],
+                        color=y_col,
+                        hover_data = ["latitude", "longitude", "timestamp"],
                         zoom=11.5,  # Adjust the zoom level as needed
-                        title="Drive map",
-                        color_continuous_scale="Viridis")       
+                        color_continuous_scale="Viridis")        
 fig.update_layout(mapbox_style="open-street-map",  # You can choose different Mapbox styles
                   mapbox=dict(
                       center=dict(lat=foc_lat, lon=foc_lon),  # Center the map around the data

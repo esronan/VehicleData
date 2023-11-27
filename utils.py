@@ -153,3 +153,12 @@ def calc_poor_dop(df, dop_col, elapsed_time_col):
         if abs(row[dop_col]) > 20: #20 = poor precision
             total_time += df.at[i,elapsed_time_col] #elapsed time is amount of time since last sensor reading
     return total_time
+
+def label_data(df, label_df, label_classes):
+    for key in label_classes.keys():
+        label_df[key] = label_df[label_classes[key]].idxmax(axis=1)
+    label_df = label_df[label_classes.keys()]
+    
+    df = pd.concat([df, label_df], axis=1)
+
+    return df
