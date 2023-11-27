@@ -16,7 +16,7 @@ st.title("Data Explorer")
 with st.sidebar:
     drive_nr = st.selectbox(
         "Choose drive number",
-        range(1,10)
+        range(1,4)
     )
     sensor = st.selectbox(
         "Choose sensor",
@@ -24,7 +24,7 @@ with st.sidebar:
     )
     timeslice = st.selectbox(
         "Entire dataset or point in time?",
-        ["Entire data set", "Point in time"]
+        ["Point in time", "Entire data set"]
     )
     if timeslice == "Point in time":
         timestamp = st.number_input("Type in timestamp of interest", value=1577218796.6,) #e.g. "1,577,218,796.81"
@@ -48,8 +48,10 @@ def get_timeslice(df, col, stamp, span):
     slyce = df[(df[col]-stamp).abs() < 10]
     return slyce
 
-
-slyce = get_timeslice(dataset_gps_mpu_left, "timestamp", timestamp, timespan)
+if timeslice == "Point in time":
+    plot_data = get_timeslice(dataset_gps_mpu_left, "timestamp", timestamp, timespan)
+else:
+    plot_data = dataset_gps_mpu_left
 
 
 # fig = px.histogram(dataset_gps_mpu_left, x="acc_x_dashboard", nbins=200)
@@ -77,9 +79,9 @@ def plot_2d_xyz(df, sensor, locs):
             fig.add_scatter(x=df["timestamp"], y=df[z_col], name= "Z axis")
             st.plotly_chart(fig, use_container_width=True)
 
-for sensor in ["Accelerometer", "Magnetometer", "Gyrometer", "Temperature Sensor"]:
+for sensor in ["Accelerometer",  "Gyrometer", "Magnetometer", "Temperature Sensor"]:
     
-   plot_2d_xyz(slyce, sensor, locs=sensor_locs[sensor_dic[sensor]])
+   plot_2d_xyz(plot_data, sensor, locs=sensor_locs[sensor_dic[sensor]])
    pass
 
 # Since all sensors are present at the dashboard and above/below the suspension, this generates histograms and plots over time for each sensor location and axis

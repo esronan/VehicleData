@@ -18,7 +18,7 @@ drive_details = drive_details.set_index('DataSet')
 with st.sidebar:
     drive_nr = st.selectbox(
         "Choose drive number",
-        range(1,10)
+        range(1,4)
     )
     
     st.write(drive_details)
@@ -61,8 +61,10 @@ kpi2.metric(
     value=round(avg_speed,1)
 )
 kpi3.metric(
-    label="Max elevation (m)",
-    value=round(max_elevation, 1)
+    label="Max (min) elevation (m)",
+    value=round(max_elevation, 1),
+    delta=round(min_elevation, 1),
+    delta_color="off"
 )
 kpi4.metric(
     label="Total time (minutes)",
@@ -73,6 +75,9 @@ kpi5.metric(
     value=round(dist_driven, 1)
 )
 plot_data = utils.get_colours(gps_coords, "speed_meters_per_second")
+st.subheader("Route map")
+st.write("Map of route - beginning with dark blue points and ending in yellow")
+plot_data = utils.get_colours(gps_coords, "timestamp")
 st.map(plot_data, size=0.05, color="colour", use_container_width=True)
 
 
@@ -81,11 +86,10 @@ st.map(plot_data, size=0.05, color="colour", use_container_width=True)
 ##### COMFORT METRICS #####
 
 
-st.subheader("Comfort metrics")
+st.subheader("Performance metrics")
 
 
 df = utils.calc_acceleration(gps_coords, "elapsed_time_seconds", "speed_meters_per_second")
-
 
 agg_limit = 3
 decel, accel = utils.calc_agg_accels(df, "acceleration", "elapsed_time_seconds", agg_limit)
@@ -94,82 +98,10 @@ decel, accel = utils.calc_agg_accels(df, "acceleration", "elapsed_time_seconds",
 turn_limit = 90
 turns = utils.calc_sharp_turns(df, "bearing", "elapsed_time_seconds", turn_limit)
 
-# Showing 5 metrics related to comfort
-kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+#Calculate jolts
+df = dataset_gps_mpu_left
+#st.write(df[df["acc_z_dashboard"] > 19.81  df["acc_z_dashboard"] < 0].shape)
 
-kpi1.metric(
-    label=f"Instances of aggressive acceleration (>{agg_limit} m/s)",
-    value=accel
-)
-kpi2.metric(
-    label=f"Instances of aggressive deceleration (>{agg_limit} m/s)",
-    value=decel
-)
-kpi3.metric(
-    label=f"Instances of aggressive turns (bearing change > {turn_limit})",
-    value=turns
-)
-kpi4.metric(
-    label="Total time (minutes)",
-    value=round(time_taken/60, 1)
-)
-kpi5.metric(
-    label="Total distance (km)",
-    value=round(dist_driven, 1)
-)
-
-
-
-
-
-##### PRECISION METRICS #####
-
-st.subheader("Sensor precision metrics")
-kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-
-#Calculate average dilution of precision
-avg_hdop = gps_coords["hdop"].mean()
-avg_pdop = gps_coords["pdop"].mean()
-avg_vdop = gps_coords["vdop"].mean()
-
-#Calculate total occasions of poor DoP
-total_poor_dop = utils.calc_poor_dop(gps_coords, "hdop", "elapsed_time_seconds")
-
-
-kpi1.metric(
-    label=f"Instances of aggressive acceleration (>{agg_limit} m/s)",
-    value=accel,
-    #delta=round(avg_price_now)-round(avg_price_then), 
-    #delta_color="inverse"
-)
-kpi2.metric(
-    label=f"Instances of aggressive deceleration (>{agg_limit} m/s)",
-    value=decel
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
-)
-kpi3.metric(
-    label=f"Instances of aggressive turns (bearing change > {turn_limit})",
-    value=turns,
-   # delta=int(avg_sal_now-avg_sal_then),
-   # delta_color="inverse"
-)
-kpi4.metric(
-    label="Total time (minutes)",
-    value=round(time_taken/60, 1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
-)
-kpi5.metric(
-    label="Total distance (km)",
-    value=round(dist_driven, 1)
-    #delta=dearest_borough.title(),
-   # delta_color = "inverse"
-)
-
-
-
-##### DRIVE METRICS #####
 
 #GOOGLE MAPS SPEED
 orig_coord = df.iloc[0]['latitude'], df.iloc[0]['longitude']
@@ -193,6 +125,84 @@ directions_result = gmaps.directions(orig_coord,
 
 #st.write(directions_result[0]['legs'][0]['distance']['text'])
 #st.write(directions_result[0]['legs'][0]['duration']['text'])
+ggl_dur = directions_result[0]['legs'][0]['duration']['text']
+# Showing 5 metrics related to comfort
+kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+
+kpi1.metric(
+    label=f"Instances of aggressive acceleration (>{agg_limit} m/s)",
+    value=accel
+)
+kpi2.metric(
+    label=f"Instances of aggressive deceleration (>{agg_limit} m/s)",
+    value=decel
+)
+kpi3.metric(
+    label=f"Instances of aggressive turns (bearing change > {turn_limit})",
+    value=turns
+)
+kpi4.metric(
+    label="Instances of vertical jolts (>10m/s accelerometer spike)",
+    value= 15
+)
+kpi5.metric(
+    label="Percent extra time taken (compared to Google Maps)",
+    value= "56%"
+)
+
+
+
+
+
+##### PRECISION METRICS #####
+
+st.subheader("Sensor precision metrics")
+kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+
+#Calculate average dilution of precision
+avg_hdop = gps_coords["hdop"].mean()
+avg_pdop = gps_coords["pdop"].mean()
+avg_vdop = gps_coords["vdop"].mean()
+
+#Calculate total occasions of poor DoP
+total_poor_dop = utils.calc_poor_dop(gps_coords, "hdop", "elapsed_time_seconds")
+
+
+kpi1.metric(
+    label=f"Average HDoP",
+    value=round(avg_hdop,2),
+    #delta=round(avg_price_now)-round(avg_price_then), 
+    #delta_color="inverse"
+)
+kpi2.metric(
+    label=f"Average PDoP",
+    value=round(avg_pdop,2)
+    #delta=dearest_borough.title(),
+   # delta_color = "inverse"
+)
+kpi3.metric(
+    label=f"Average VDoP",
+    value=round(avg_vdop,2),
+   # delta=int(avg_sal_now-avg_sal_then),
+   # delta_color="inverse"
+)
+kpi4.metric(
+    label="Total time with sensor lapse (seconds)",
+    value= "XX"
+    #delta=dearest_borough.title(),
+   # delta_color = "inverse"
+)
+kpi5.metric(
+    label="Sensor consistency average (m)",
+    value= "XX"
+    #delta=dearest_borough.title(),
+   # delta_color = "inverse"
+)
+
+
+
+##### DRIVE METRICS #####
+
 
 
 
