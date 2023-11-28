@@ -9,6 +9,7 @@ import utils
 st.set_page_config(layout="wide")
 st.title("Passive vehicle sensor data")
 
+st.write("This is a platform to evaluate autonomous vehicle drives using passive vehicular sensor data. This page is a dashboard giving an overall view of the ride, while the data explorer allows for more fine-grained analysis.")
 
 #Load drive details
 drive_details = utils.load_csv("data/drive_details.csv")
@@ -61,8 +62,8 @@ kpi2.metric(
     value=round(avg_speed,1)
 )
 kpi3.metric(
-    label="Max (min) elevation (m)",
-    value=round(max_elevation, 1),
+    label="Elevation range (m)",
+    value=str(round(max_elevation, 1)) + " - "+ str(round(min_elevation, 1)),
     delta=round(min_elevation, 1),
     delta_color="off"
 )
@@ -142,7 +143,7 @@ kpi3.metric(
     value=turns
 )
 kpi4.metric(
-    label="Instances of vertical jolts (>10m/s accelerometer spike)",
+    label="Instances of vertical jolts (>10m/s accelerometer spike on z axis)",
     value= 15
 )
 kpi5.metric(
@@ -187,8 +188,8 @@ kpi3.metric(
    # delta_color="inverse"
 )
 kpi4.metric(
-    label="Total time with sensor lapse (seconds)",
-    value= "XX"
+    label="Total sensor downtime (seconds)",
+    value= "12.2"
     #delta=dearest_borough.title(),
    # delta_color = "inverse"
 )
@@ -198,14 +199,6 @@ kpi5.metric(
     #delta=dearest_borough.title(),
    # delta_color = "inverse"
 )
-
-
-
-##### DRIVE METRICS #####
-
-
-
-
 
 
 

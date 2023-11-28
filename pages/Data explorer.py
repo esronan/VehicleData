@@ -31,6 +31,10 @@ with st.sidebar:
         timespan = st.number_input("Type in timespan of interest (seconds)", value=10)
         st.write("e.g. 10 seconds = +/- 5 seconds")
 
+with st.columns(3)[1]:
+    st.subheader(f"Frame at timestamp: {timestamp}")
+    st.image("data/example_image.png")
+
 # Initiate dictionary to convert user selected sensor to the csv tag
 sensor_dic = {"Accelerometer": "acc", "Magnetometer": "mag", "GNSS":"dop", "Gyrometer": "gyro", "Temperature Sensor":"temp"}
 sensor_locs = {"acc":["dashboard", "below_suspension", "above_suspension"], 
