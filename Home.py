@@ -7,7 +7,7 @@ import plotly.express as px
 import utils
 
 st.set_page_config(layout="wide")
-st.title("Passive vehicle sensor data")
+st.title("Passive vehiclular sensor data")
 
 st.write("This is a platform to evaluate autonomous vehicle drives using passive vehicular sensor data. This page is a dashboard giving an overall view of the ride, while the data explorer allows for more fine-grained analysis.")
 
