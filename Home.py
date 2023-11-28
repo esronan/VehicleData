@@ -26,8 +26,8 @@ with st.sidebar:
 
 ##### LOAD FILES ######
 
-gps_coords = utils.load_csv(f"data/dataset_gps ({drive_nr}).csv")
-dataset_gps_mpu_left = utils.load_csv("data/dataset_gps_mpu_left.csv")
+gps_coords = utils.load_csv(f"data/{drive_nr}/dataset_gps.csv")
+dataset_gps_mpu_left = utils.load_csv(f"data/{drive_nr}/dataset_gps_mpu_left.csv")
 
 
 ###### DRIVE METRICS
@@ -143,7 +143,7 @@ kpi3.metric(
     value=turns
 )
 kpi4.metric(
-    label="Instances of vertical jolts (>10m/s accelerometer spike on z axis)",
+    label="Instances of vertical jolts (>10m/s z-axis accelerometer spike)",
     value= 15
 )
 kpi5.metric(
